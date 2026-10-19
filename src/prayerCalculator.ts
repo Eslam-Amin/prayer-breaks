@@ -145,4 +145,40 @@ export class PrayerCalculator {
       isObligatory: PRAYER_METADATA[id].isObligatory
     }));
   }
+
+  public getNextObligatoryPrayer(now: Date = new Date()): NextPrayerInfo | null {
+    const todaySchedule = this.getScheduleForDate(now);
+    if (!todaySchedule) {
+      return null;
+    }
+
+    const obligatoryToday = todaySchedule.filter((item) => item.isObligatory);
+    for (const item of obligatoryToday) {
+      const diff = item.time.getTime() - now.getTime();
+      if (diff > 0) {
+        return {
+          prayer: item,
+          remainingMs: diff
+        };
+      }
+    }
+
+    // All today's obligatory prayers have passed; get tomorrow's Fajr
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowSchedule = this.getScheduleForDate(tomorrow);
+    if (!tomorrowSchedule) {
+      return null;
+    }
+
+    const tomorrowFajr = tomorrowSchedule.find((item) => item.id === 'fajr');
+    if (!tomorrowFajr) {
+      return null;
+    }
+
+    return {
+      prayer: tomorrowFajr,
+      remainingMs: tomorrowFajr.time.getTime() - now.getTime()
+    };
+  }
 }
