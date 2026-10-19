@@ -92,3 +92,57 @@ export function getCalculationParams(methodName: string, madhabName: string, hig
 
   return params;
 }
+
+export class PrayerCalculator {
+  public getConfiguration() {
+    const config = vscode.workspace.getConfiguration('prayerBreaks');
+    const latitude = config.get<number | null>('latitude', null);
+    const longitude = config.get<number | null>('longitude', null);
+    const cityName = config.get<string>('cityName', '');
+    const calculationMethod = config.get<string>('calculationMethod', 'MuslimWorldLeague');
+    const madhab = config.get<string>('madhab', 'Shafi');
+    const highLatitudeRule = config.get<string>('highLatitudeRule', 'MiddleOfTheNight');
+    const use24HourFormat = config.get<boolean>('use24HourFormat', false);
+    const preNotificationMinutes = config.get<number>('preNotificationMinutes', 10);
+    const breakDurationMinutes = config.get<number>('breakDurationMinutes', 15);
+    const snoozeMinutes = config.get<number>('snoozeMinutes', 5);
+
+    return {
+      latitude,
+      longitude,
+      cityName,
+      calculationMethod,
+      madhab,
+      highLatitudeRule,
+      use24HourFormat,
+      preNotificationMinutes,
+      breakDurationMinutes,
+      snoozeMinutes
+    };
+  }
+
+  public hasCoordinates(): boolean {
+    const { latitude, longitude } = this.getConfiguration();
+    return typeof latitude === 'number' && typeof longitude === 'number';
+  }
+
+  public getScheduleForDate(date: Date): PrayerScheduleItem[] | null {
+    const { latitude, longitude, calculationMethod, madhab, highLatitudeRule } = this.getConfiguration();
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return null;
+    }
+
+    const coordinates = new Coordinates(latitude, longitude);
+    const params = getCalculationParams(calculationMethod, madhab, highLatitudeRule);
+    const prayerTimes = new PrayerTimes(coordinates, date, params);
+
+    const entries: PrayerEntryId[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    return entries.map((id) => ({
+      id,
+      name: PRAYER_METADATA[id].name,
+      arabicName: PRAYER_METADATA[id].arabicName,
+      time: prayerTimes[id],
+      isObligatory: PRAYER_METADATA[id].isObligatory
+    }));
+  }
+}
