@@ -92,3 +92,67 @@ export function suggestCalculationMethodByCountry(countryCode?: string): string 
   }
   return 'MuslimWorldLeague';
 }
+
+/**
+ * Attempts to detect the user's location via public IP geolocation APIs.
+ */
+export async function detectLocationViaIP(): Promise<DetectedLocation | null> {
+  // Primary provider: ipwho.is (HTTPS, free, no API key needed)
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://ipwho.is/', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = (await res.json()) as {
+        success?: boolean;
+        latitude?: number;
+        longitude?: number;
+        city?: string;
+        country?: string;
+        country_code?: string;
+      };
+      if (data.success !== false && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        const city = [data.city, data.country].filter(Boolean).join(', ');
+        return {
+          latitude: Number(data.latitude.toFixed(4)),
+          longitude: Number(data.longitude.toFixed(4)),
+          cityName: city || 'Auto-detected Location',
+          countryCode: data.country_code
+        };
+      }
+    }
+  } catch {
+    // Fallback to second provider
+  }
+
+  // Fallback provider: ipapi.co/json
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = (await res.json()) as {
+        latitude?: number;
+        longitude?: number;
+        city?: string;
+        country_name?: string;
+        country_code?: string;
+      };
+      if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        const city = [data.city, data.country_name].filter(Boolean).join(', ');
+        return {
+          latitude: Number(data.latitude.toFixed(4)),
+          longitude: Number(data.longitude.toFixed(4)),
+          cityName: city || 'Auto-detected Location',
+          countryCode: data.country_code
+        };
+      }
+    }
+  } catch {
+    // Ignore network errors
+  }
+
+  return null;
+}
