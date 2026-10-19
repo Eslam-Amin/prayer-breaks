@@ -1,10 +1,10 @@
-# 🕌 Prayer Breaks — VS Code Extension for Muslim Developers
+# Prayer Breaks — VS Code Extension for Muslim Developers
 
 Mindful Islamic prayer time reminders, live status bar countdown, and prayer break timer built right into Visual Studio Code.
 
-## ✨ Features
+## Features
 
-- **Live Status Bar Countdown**: Displays the upcoming obligatory prayer and remaining time (e.g., `🕌 Asr in 42m`) in your VS Code status bar.
+- **Live Status Bar Countdown**: Displays the upcoming obligatory prayer and remaining time (e.g., `Asr in 42m`) in your VS Code status bar.
 - **Rich Schedule Tooltip**: Hover over the status bar item to view today's complete prayer schedule (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) with Arabic names, Hijri date, and quick action links.
 - **Offline Astronomical Calculation**: Uses the trusted [`adhan`](https://github.com/batoulapps/adhan-js) library for accurate offline prayer time calculation—no internet required after location setup.
 - **Zero-Friction Location Setup**:
@@ -13,11 +13,11 @@ Mindful Islamic prayer time reminders, live status bar countdown, and prayer bre
 - **Smart Notifications & Break Timer**:
   - **Pre-Prayer Heads-Up**: Configurable reminder (default: 10 minutes before prayer) so you can commit your code and wrap up your current thought.
   - **On-Time Prayer Alert**: Notification when prayer time arrives with one-click **Start Break** and **Snooze** buttons.
-  - **Active Break Timer**: Shows `🕌 On Break (Asr: 14:32)` in the status bar while you step away to pray.
+  - **Active Break Timer**: Shows `On Break (Asr: 14:32)` in the status bar while you step away to pray.
 
-## 🚀 Commands
+## Commands
 
-Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) or click the `🕌` status bar item:
+Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) or click the status bar item:
 
 - `Prayer Breaks: Show Schedule & Actions` (`prayerBreaks.showMenu`)
 - `Prayer Breaks: Select City or Set Coordinates` (`prayerBreaks.selectCity`)
@@ -28,7 +28,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) or click the `🕌` st
 - `Prayer Breaks: End Current Break` (`prayerBreaks.endBreak`)
 - `Prayer Breaks: Snooze Reminder (5 min)` (`prayerBreaks.snooze`)
 
-## ⚙️ Extension Settings
+## Extension Settings
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
@@ -43,7 +43,7 @@ Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) or click the `🕌` st
 | `prayerBreaks.use24HourFormat` | `false` | Display times in 24-hour format. |
 | `prayerBreaks.statusBarAlignment` | `"Right"` | Status bar alignment (`"Left"` or `"Right"`). |
 
-## 🛠️ Development
+## Development
 
 1. Install dependencies:
    ```bash
