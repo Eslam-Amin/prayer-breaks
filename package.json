@@ -6,6 +6,14 @@
   "publisher": "Eslam-Amin",
   "license": "MIT",
   "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Eslam-Amin/prayer-breaks.git"
+  },
+  "homepage": "https://github.com/Eslam-Amin/prayer-breaks#readme",
+  "bugs": {
+    "url": "https://github.com/Eslam-Amin/prayer-breaks/issues"
+  },
   "galleryBanner": {
     "color": "#0A2E2A",
     "theme": "dark"
