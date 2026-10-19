@@ -499,6 +499,213 @@ export class PrayerBreaksManager implements vscode.Disposable {
     }
   }
 
+
+  public async promptDetectLocation(): Promise<void> {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: '🕌 Detecting your location via IP...',
+        cancellable: false
+      },
+      async () => {
+        const detected = await detectLocationViaIP();
+        if (detected) {
+          const suggested = suggestCalculationMethodByCountry(detected.countryCode);
+          await saveLocationToConfig(
+            detected.latitude,
+            detected.longitude,
+            detected.cityName,
+            suggested
+          );
+          this.tick();
+          vscode.window.showInformationMessage(
+            `🕌 Location updated to ${detected.cityName} (${detected.latitude}, ${detected.longitude}).`
+          );
+        } else {
+          vscode.window.showErrorMessage(
+            '🕌 Could not auto-detect location. Please choose a city or enter coordinates manually.'
+          );
+        }
+      }
+    );
+  }
+
+  public async promptSelectCity(): Promise<void> {
+    interface CityPickItem extends vscode.QuickPickItem {
+      mode: 'auto' | 'manual' | 'preset';
+      preset?: (typeof CITY_PRESETS)[number];
+    }
+
+    const items: CityPickItem[] = [
+      {
+        label: '$(globe) Auto-Detect Location via IP',
+        description: 'Automatically detect your city and coordinates',
+        mode: 'auto'
+      },
+      {
+        label: '$(edit) Enter Custom Latitude & Longitude...',
+        description: 'Set exact coordinates for any location worldwide',
+        mode: 'manual'
+      },
+      {
+        label: 'Popular Cities',
+        kind: vscode.QuickPickItemKind.Separator,
+        mode: 'preset'
+      },
+      ...CITY_PRESETS.map((city) => ({
+        label: `$(location) ${city.name}, ${city.country}`,
+        description: `${city.latitude}, ${city.longitude}`,
+        detail: city.recommendedMethod ? `Recommended Method: ${city.recommendedMethod}` : undefined,
+        mode: 'preset' as const,
+        preset: city
+      }))
+    ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      title: '🕌 Select Your Location',
+      placeHolder: 'Search for a city, auto-detect via IP, or enter custom coordinates'
+    });
+
+    if (!picked) {
+      return;
+    }
+
+    if (picked.mode === 'auto') {
+      await this.promptDetectLocation();
+      return;
+    }
+
+    if (picked.mode === 'manual') {
+      const latInput = await vscode.window.showInputBox({
+        title: '🕌 Enter Latitude (-90 to 90)',
+        prompt: 'Example: 21.4225 for Makkah, 30.0444 for Cairo',
+        validateInput: (val) => {
+          const num = Number(val);
+          if (val.trim() === '' || Number.isNaN(num) || num < -90 || num > 90) {
+            return 'Please enter a valid latitude between -90 and 90';
+          }
+          return null;
+        }
+      });
+      if (latInput === undefined) {
+        return;
+      }
+
+      const lonInput = await vscode.window.showInputBox({
+        title: '🕌 Enter Longitude (-180 to 180)',
+        prompt: 'Example: 39.8262 for Makkah, 31.2357 for Cairo',
+        validateInput: (val) => {
+          const num = Number(val);
+          if (val.trim() === '' || Number.isNaN(num) || num < -180 || num > 180) {
+            return 'Please enter a valid longitude between -180 and 180';
+          }
+          return null;
+        }
+      });
+      if (lonInput === undefined) {
+        return;
+      }
+
+      const cityInput = await vscode.window.showInputBox({
+        title: '🕌 Enter Location Display Name (Optional)',
+        prompt: 'Example: Makkah, Cairo, Home, Office',
+        placeHolder: 'Custom Location'
+      });
+      if (cityInput === undefined) {
+        return;
+      }
+
+      const lat = Number(latInput);
+      const lon = Number(lonInput);
+      const name = cityInput.trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      await saveLocationToConfig(lat, lon, name);
+      this.tick();
+      vscode.window.showInformationMessage(`🕌 Location set to ${name} (${lat}, ${lon}).`);
+      return;
+    }
+
+    if (picked.preset) {
+      const { name, country, latitude, longitude, recommendedMethod } = picked.preset;
+      const fullCityName = `${name}, ${country}`;
+      const config = vscode.workspace.getConfiguration('prayerBreaks');
+      await config.update('latitude', latitude, vscode.ConfigurationTarget.Global);
+      await config.update('longitude', longitude, vscode.ConfigurationTarget.Global);
+      await config.update('cityName', fullCityName, vscode.ConfigurationTarget.Global);
+      if (recommendedMethod) {
+        await config.update('calculationMethod', recommendedMethod, vscode.ConfigurationTarget.Global);
+      }
+      this.tick();
+      vscode.window.showInformationMessage(
+        `🕌 Location set to ${fullCityName} (Method: ${recommendedMethod || config.get('calculationMethod')}).`
+      );
+    }
+  }
+
+  public async promptSelectCalculationMethod(): Promise<void> {
+    const methods: { id: string; label: string; description: string }[] = [
+      { id: 'MuslimWorldLeague', label: 'Muslim World League (MWL)', description: 'Europe, Far East, parts of US' },
+      { id: 'UmmAlQura', label: 'Umm al-Qura University, Makkah', description: 'Saudi Arabia & Arabian Peninsula' },
+      { id: 'Egyptian', label: 'Egyptian General Authority of Survey', description: 'Africa, Syria, Lebanon, Malaysia' },
+      { id: 'Karachi', label: 'University of Islamic Sciences, Karachi', description: 'Pakistan, Bangladesh, India, Afghanistan' },
+      { id: 'NorthAmerica', label: 'ISNA (North America)', description: 'United States & Canada' },
+      { id: 'Dubai', label: 'Dubai / UAE', description: 'United Arab Emirates' },
+      { id: 'Qatar', label: 'Qatar', description: 'Qatar' },
+      { id: 'Kuwait', label: 'Kuwait', description: 'Kuwait' },
+      { id: 'Turkey', label: 'Diyanet İşleri Başkanlığı, Turkey', description: 'Turkey' },
+      { id: 'Singapore', label: 'MUIS Singapore', description: 'Singapore, Malaysia, Indonesia' },
+      { id: 'MoonsightingCommittee', label: 'Moonsighting Committee', description: 'UK & High-latitude regions' },
+      { id: 'Tehran', label: 'University of Tehran', description: 'Iran' }
+    ];
+
+    const current = this.calculator.getConfiguration().calculationMethod;
+    const picked = await vscode.window.showQuickPick(
+      methods.map((m) => ({
+        label: `${m.id === current ? '$(check) ' : ''}${m.label}`,
+        description: m.description,
+        id: m.id
+      })),
+      {
+        title: '🕌 Select Prayer Calculation Method',
+        placeHolder: 'Choose the astronomical calculation authority for your region'
+      }
+    );
+
+    if (picked) {
+      const config = vscode.workspace.getConfiguration('prayerBreaks');
+      await config.update('calculationMethod', picked.id, vscode.ConfigurationTarget.Global);
+      this.tick();
+      vscode.window.showInformationMessage(`🕌 Calculation method updated to ${picked.label.replace('$(check) ', '')}.`);
+    }
+  }
+
+  public async promptSelectMadhab(): Promise<void> {
+    const current = this.calculator.getConfiguration().madhab;
+    const options = [
+      {
+        id: 'Shafi',
+        label: `${current === 'Shafi' ? '$(check) ' : ''}Standard (Shafi'i, Maliki, Hanbali)`,
+        description: 'Earlier Asr time (shadow length = 1x object height)'
+      },
+      {
+        id: 'Hanafi',
+        label: `${current === 'Hanafi' ? '$(check) ' : ''}Hanafi`,
+        description: 'Later Asr time (shadow length = 2x object height)'
+      }
+    ];
+
+    const picked = await vscode.window.showQuickPick(options, {
+      title: '🕌 Select Asr Juristic Method (Madhab)',
+      placeHolder: 'Choose how Asr prayer time is calculated'
+    });
+
+    if (picked) {
+      const config = vscode.workspace.getConfiguration('prayerBreaks');
+      await config.update('madhab', picked.id, vscode.ConfigurationTarget.Global);
+      this.tick();
+      vscode.window.showInformationMessage(`🕌 Asr juristic method set to ${picked.id}.`);
+    }
+  }
+
   public dispose(): void {
     if (this.timer) {
       clearInterval(this.timer);
