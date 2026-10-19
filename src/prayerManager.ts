@@ -313,6 +313,192 @@ export class PrayerBreaksManager implements vscode.Disposable {
     );
   }
 
+
+  private buildTooltip(now: Date, nextPrayer?: PrayerScheduleItem): vscode.MarkdownString {
+    const schedule = this.calculator.getScheduleForDate(now);
+    const config = this.calculator.getConfiguration();
+    const hijri = this.calculator.getHijriDateString(now);
+    const locationDisplay =
+      config.cityName ||
+      (config.latitude !== null && config.longitude !== null
+        ? `${config.latitude}, ${config.longitude}`
+        : 'Unconfigured');
+
+    const md = new vscode.MarkdownString();
+    md.isTrusted = true;
+    md.supportThemeIcons = true;
+
+    md.appendMarkdown(`### 🕌 Prayer Schedule — ${locationDisplay}\n`);
+    if (hijri) {
+      md.appendMarkdown(`*${hijri}* • Method: \`${config.calculationMethod}\` (${config.madhab})\n\n`);
+    } else {
+      md.appendMarkdown(`Method: \`${config.calculationMethod}\` (${config.madhab})\n\n`);
+    }
+
+    if (this.activeBreak) {
+      const rem = this.calculator.formatExactTimer(
+        this.activeBreak.endsAt.getTime() - now.getTime()
+      );
+      md.appendMarkdown(
+        `> **$(clock) Active Break:** ${this.activeBreak.prayerName} (${rem} remaining) — [End Break](command:prayerBreaks.endBreak)\n\n`
+      );
+    }
+
+    if (schedule) {
+      md.appendMarkdown(`| Prayer | Arabic | Time | Status |\n`);
+      md.appendMarkdown(`| :--- | :--- | :--- | :--- |\n`);
+
+      for (const item of schedule) {
+        const timeStr = this.calculator.formatTime(item.time);
+        const isNext = nextPrayer && item.id === nextPrayer.id && item.time.getDate() === now.getDate();
+        const isPassed = item.time.getTime() <= now.getTime();
+
+        let status = '';
+        if (isNext) {
+          const countdown = this.calculator.formatCountdown(item.time.getTime() - now.getTime());
+          status = `**Next (in ${countdown})**`;
+        } else if (isPassed) {
+          status = `$(check) Passed`;
+        } else {
+          status = `Upcoming`;
+        }
+
+        const rowName = isNext ? `**${item.name}**` : item.name;
+        const rowTime = isNext ? `**${timeStr}**` : timeStr;
+        md.appendMarkdown(`| ${rowName} | ${item.arabicName} | ${rowTime} | ${status} |\n`);
+      }
+    }
+
+    md.appendMarkdown(`\n---\n`);
+    if (this.activeBreak) {
+      md.appendMarkdown(
+        `[$(debug-stop) End Break](command:prayerBreaks.endBreak) &nbsp;|&nbsp; `
+      );
+    } else {
+      md.appendMarkdown(
+        `[$(play) Start ${config.breakDurationMinutes}m Break](command:prayerBreaks.startBreak) &nbsp;|&nbsp; `
+      );
+    }
+    md.appendMarkdown(
+      `[$(location) Change Location](command:prayerBreaks.selectCity) &nbsp;|&nbsp; [$(gear) Method](command:prayerBreaks.selectCalculationMethod)`
+    );
+
+    return md;
+  }
+
+  public async showInteractiveMenu(): Promise<void> {
+    const now = new Date();
+    const config = this.calculator.getConfiguration();
+    const schedule = this.calculator.getScheduleForDate(now);
+    const nextInfo = this.calculator.getNextObligatoryPrayer(now);
+    const hijri = this.calculator.getHijriDateString(now);
+
+    const items: (vscode.QuickPickItem & { action?: () => Promise<void> | void })[] = [];
+
+    // Break actions
+    if (this.activeBreak) {
+      const rem = this.calculator.formatExactTimer(
+        this.activeBreak.endsAt.getTime() - now.getTime()
+      );
+      items.push({
+        label: `$(debug-stop) End Current Break (${this.activeBreak.prayerName} — ${rem} left)`,
+        description: 'Resume coding',
+        action: () => this.endBreak()
+      });
+    } else {
+      const nextName = nextInfo?.prayer.name ?? 'Prayer';
+      items.push({
+        label: `$(play) Start Prayer Break (${config.breakDurationMinutes} min)`,
+        description: `Take a mindful break for ${nextName}`,
+        action: () => this.startBreak(nextName)
+      });
+    }
+
+    if (nextInfo) {
+      items.push({
+        label: `$(bell) Snooze Next Reminder (${config.snoozeMinutes} min)`,
+        description: `Next: ${nextInfo.prayer.name} at ${this.calculator.formatTime(nextInfo.prayer.time)}`,
+        action: () => this.snooze(nextInfo.prayer)
+      });
+    }
+
+    // Today's Schedule section
+    if (schedule) {
+      items.push({
+        label: `Today's Schedule (${config.cityName || 'Configured Location'}${hijri ? ' • ' + hijri : ''})`,
+        kind: vscode.QuickPickItemKind.Separator
+      });
+
+      for (const s of schedule) {
+        const isNext = nextInfo && s.id === nextInfo.prayer.id && s.time.getDate() === now.getDate();
+        const isPassed = s.time.getTime() <= now.getTime();
+        const icon = isNext ? '$(arrow-right)' : isPassed ? '$(check)' : '$(clock)';
+        const statusDesc = isNext
+          ? `Next — in ${this.calculator.formatCountdown(s.time.getTime() - now.getTime())}`
+          : isPassed
+            ? 'Passed'
+            : '';
+
+        items.push({
+          label: `${icon} ${s.name} (${s.arabicName})`,
+          description: `${this.calculator.formatTime(s.time)}   ${statusDesc}`,
+          action: () => {
+            if (s.isObligatory) {
+              this.startBreak(s.name);
+            }
+          }
+        });
+      }
+    }
+
+    // Configuration actions
+    items.push({
+      label: 'Settings & Configuration',
+      kind: vscode.QuickPickItemKind.Separator
+    });
+
+    items.push({
+      label: '$(location) Select City or Set Coordinates',
+      description: config.cityName || `${config.latitude ?? 'Unset'}, ${config.longitude ?? 'Unset'}`,
+      action: () => this.promptSelectCity()
+    });
+
+    items.push({
+      label: '$(globe) Auto-Detect Location via IP',
+      description: 'Refresh coordinates automatically',
+      action: () => this.promptDetectLocation()
+    });
+
+    items.push({
+      label: '$(compass) Change Calculation Method',
+      description: `Current: ${config.calculationMethod}`,
+      action: () => this.promptSelectCalculationMethod()
+    });
+
+    items.push({
+      label: '$(law) Change Asr Juristic Method (Madhab)',
+      description: `Current: ${config.madhab}`,
+      action: () => this.promptSelectMadhab()
+    });
+
+    items.push({
+      label: '$(gear) Open Extension Settings',
+      description: 'Configure pre-reminder time, break duration, 24h format',
+      action: () => {
+        vscode.commands.executeCommand('workbench.action.openSettings', 'prayerBreaks');
+      }
+    });
+
+    const selected = await vscode.window.showQuickPick(items, {
+      title: '🕌 Prayer Breaks — Schedule & Actions',
+      placeHolder: 'Select an action or click a prayer to start a break'
+    });
+
+    if (selected?.action) {
+      await selected.action();
+    }
+  }
+
   public dispose(): void {
     if (this.timer) {
       clearInterval(this.timer);
