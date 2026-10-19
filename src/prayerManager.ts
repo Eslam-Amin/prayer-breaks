@@ -171,6 +171,89 @@ export class PrayerBreaksManager implements vscode.Disposable {
     this.checkNotifications(now);
   }
 
+
+  private checkNotifications(now: Date): void {
+    const schedule = this.calculator.getScheduleForDate(now);
+    if (!schedule) {
+      return;
+    }
+
+    const config = this.calculator.getConfiguration();
+    const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+    for (const item of schedule) {
+      if (!item.isObligatory) {
+        continue;
+      }
+
+      const diffMs = item.time.getTime() - now.getTime();
+
+      // Pre-prayer notification: trigger when remaining time is within [preMin - 1min, preMin]
+      if (config.preNotificationMinutes > 0) {
+        const preTargetMs = config.preNotificationMinutes * 60 * 1000;
+        const preKey = `${dateKey}-${item.id}-pre`;
+        if (
+          diffMs <= preTargetMs &&
+          diffMs > preTargetMs - 60 * 1000 &&
+          !this.notifiedKeys.has(preKey)
+        ) {
+          this.notifiedKeys.add(preKey);
+          this.triggerPrePrayerNotification(item, config.preNotificationMinutes);
+        }
+      }
+
+      // Exact prayer-time notification: trigger when remaining time is within [-60s, 0s]
+      const onTimeKey = `${dateKey}-${item.id}-ontime`;
+      if (diffMs <= 0 && diffMs > -60 * 1000 && !this.notifiedKeys.has(onTimeKey)) {
+        this.notifiedKeys.add(onTimeKey);
+        this.triggerPrayerTimeNotification(item, false);
+      }
+    }
+  }
+
+  private triggerPrePrayerNotification(prayer: PrayerScheduleItem, minutesBefore: number): void {
+    const config = this.calculator.getConfiguration();
+    const formattedTime = this.calculator.formatTime(prayer.time);
+    const startLabel = `Start Break (${config.breakDurationMinutes}m)`;
+    const snoozeLabel = `Snooze (${config.snoozeMinutes}m)`;
+
+    vscode.window
+      .showInformationMessage(
+        `🕌 ${prayer.name} (${prayer.arabicName}) is in ${minutesBefore} minutes (${formattedTime}). Good time to wrap up your current task!`,
+        startLabel,
+        snoozeLabel,
+        'Dismiss'
+      )
+      .then((selection) => {
+        if (selection === startLabel) {
+          this.startBreak(prayer.name);
+        } else if (selection === snoozeLabel) {
+          this.snooze(prayer);
+        }
+      });
+  }
+
+  private triggerPrayerTimeNotification(prayer: PrayerScheduleItem, isSnoozed: boolean): void {
+    const config = this.calculator.getConfiguration();
+    const formattedTime = this.calculator.formatTime(prayer.time);
+    const startLabel = `Start Break (${config.breakDurationMinutes}m)`;
+    const snoozeLabel = `Snooze (${config.snoozeMinutes}m)`;
+
+    const message = isSnoozed
+      ? `🕌 Snooze Reminder: Time for ${prayer.name} (${prayer.arabicName}) prayer!`
+      : `🕌 Hayya 'ala-s-Salah! It is time for ${prayer.name} (${prayer.arabicName}) prayer (${formattedTime}).`;
+
+    vscode.window
+      .showInformationMessage(message, startLabel, snoozeLabel, 'Dismiss')
+      .then((selection) => {
+        if (selection === startLabel) {
+          this.startBreak(prayer.name);
+        } else if (selection === snoozeLabel) {
+          this.snooze(prayer);
+        }
+      });
+  }
+
   public dispose(): void {
     if (this.timer) {
       clearInterval(this.timer);
