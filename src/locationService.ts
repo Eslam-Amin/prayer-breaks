@@ -156,3 +156,23 @@ export async function detectLocationViaIP(): Promise<DetectedLocation | null> {
 
   return null;
 }
+
+export async function saveLocationToConfig(
+  latitude: number,
+  longitude: number,
+  cityName: string,
+  recommendedMethod?: string
+): Promise<void> {
+  const config = vscode.workspace.getConfiguration('prayerBreaks');
+  await config.update('latitude', latitude, vscode.ConfigurationTarget.Global);
+  await config.update('longitude', longitude, vscode.ConfigurationTarget.Global);
+  await config.update('cityName', cityName, vscode.ConfigurationTarget.Global);
+
+  if (recommendedMethod) {
+    const inspect = config.inspect<string>('calculationMethod');
+    const hasCustomMethod = inspect?.globalValue !== undefined || inspect?.workspaceValue !== undefined;
+    if (!hasCustomMethod) {
+      await config.update('calculationMethod', recommendedMethod, vscode.ConfigurationTarget.Global);
+    }
+  }
+}
