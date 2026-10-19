@@ -44,3 +44,51 @@ export const CITY_PRESETS: CityPreset[] = [
   { name: 'Toronto', country: 'Canada', latitude: 43.6532, longitude: -79.3832, recommendedMethod: 'NorthAmerica' },
   { name: 'Sydney', country: 'Australia', latitude: -33.8688, longitude: 151.2093, recommendedMethod: 'MuslimWorldLeague' }
 ];
+
+export interface DetectedLocation {
+  latitude: number;
+  longitude: number;
+  cityName: string;
+  countryCode?: string;
+}
+
+export function suggestCalculationMethodByCountry(countryCode?: string): string | undefined {
+  if (!countryCode) {
+    return undefined;
+  }
+  const code = countryCode.toUpperCase();
+  if (['SA', 'YE', 'BH', 'OM'].includes(code)) {
+    return 'UmmAlQura';
+  }
+  if (['AE'].includes(code)) {
+    return 'Dubai';
+  }
+  if (['QA'].includes(code)) {
+    return 'Qatar';
+  }
+  if (['KW'].includes(code)) {
+    return 'Kuwait';
+  }
+  if (['EG', 'SD', 'SY', 'LB'].includes(code)) {
+    return 'Egyptian';
+  }
+  if (['TR'].includes(code)) {
+    return 'Turkey';
+  }
+  if (['PK', 'BD', 'IN', 'AF'].includes(code)) {
+    return 'Karachi';
+  }
+  if (['SG', 'MY', 'ID', 'BN'].includes(code)) {
+    return 'Singapore';
+  }
+  if (['US', 'CA'].includes(code)) {
+    return 'NorthAmerica';
+  }
+  if (['IR'].includes(code)) {
+    return 'Tehran';
+  }
+  if (['GB'].includes(code)) {
+    return 'MoonsightingCommittee';
+  }
+  return 'MuslimWorldLeague';
+}
