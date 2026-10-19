@@ -254,6 +254,65 @@ export class PrayerBreaksManager implements vscode.Disposable {
       });
   }
 
+
+  public startBreak(prayerName?: string, customMinutes?: number): void {
+    const config = this.calculator.getConfiguration();
+    const duration = customMinutes ?? config.breakDurationMinutes;
+    const nextInfo = this.calculator.getNextObligatoryPrayer();
+    const label = prayerName || nextInfo?.prayer.name || 'Prayer';
+
+    this.activeBreak = {
+      prayerName: label,
+      endsAt: new Date(Date.now() + duration * 60 * 1000)
+    };
+    this.snoozeState = null;
+    this.tick();
+
+    vscode.window
+      .showInformationMessage(
+        `🕌 Started ${duration}-minute break for ${label}. Step away from the screen and enjoy your prayer!`,
+        'End Break Early'
+      )
+      .then((choice) => {
+        if (choice === 'End Break Early') {
+          this.endBreak();
+        }
+      });
+  }
+
+  public endBreak(): void {
+    if (!this.activeBreak) {
+      vscode.window.showInformationMessage('🕌 No active prayer break right now.');
+      return;
+    }
+    const name = this.activeBreak.prayerName;
+    this.activeBreak = null;
+    this.tick();
+    vscode.window.showInformationMessage(`🕌 Ended ${name} break. Welcome back!`);
+  }
+
+  public snooze(prayer?: PrayerScheduleItem): void {
+    const config = this.calculator.getConfiguration();
+    const targetPrayer =
+      prayer ||
+      this.calculator.getNextObligatoryPrayer()?.prayer || {
+        id: 'dhuhr',
+        name: 'Prayer',
+        arabicName: 'الصلاة',
+        time: new Date(),
+        isObligatory: true
+      };
+
+    this.snoozeState = {
+      prayer: targetPrayer,
+      remindAt: new Date(Date.now() + config.snoozeMinutes * 60 * 1000)
+    };
+    this.tick();
+    vscode.window.showInformationMessage(
+      `🕌 Snoozed ${targetPrayer.name} reminder for ${config.snoozeMinutes} minutes.`
+    );
+  }
+
   public dispose(): void {
     if (this.timer) {
       clearInterval(this.timer);
