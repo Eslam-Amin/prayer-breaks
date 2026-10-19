@@ -1,0 +1,202 @@
+{
+  "name": "prayer-breaks",
+  "displayName": "Prayer Breaks",
+  "description": "Mindful Islamic prayer time reminders, live status bar countdown, and prayer break timer for developers.",
+  "version": "0.1.0",
+  "publisher": "Eslam-Amin",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0A2E2A",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "islam",
+    "prayer",
+    "salah",
+    "namaz",
+    "adhan",
+    "break",
+    "reminder",
+    "productivity"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "prayerBreaks.showMenu",
+        "title": "Prayer Breaks: Show Schedule & Actions"
+      },
+      {
+        "command": "prayerBreaks.detectLocation",
+        "title": "Prayer Breaks: Auto-Detect Location (IP)"
+      },
+      {
+        "command": "prayerBreaks.selectCity",
+        "title": "Prayer Breaks: Select City or Set Coordinates"
+      },
+      {
+        "command": "prayerBreaks.selectCalculationMethod",
+        "title": "Prayer Breaks: Select Calculation Method"
+      },
+      {
+        "command": "prayerBreaks.selectMadhab",
+        "title": "Prayer Breaks: Select Asr Juristic Method (Madhab)"
+      },
+      {
+        "command": "prayerBreaks.startBreak",
+        "title": "Prayer Breaks: Start Prayer Break"
+      },
+      {
+        "command": "prayerBreaks.endBreak",
+        "title": "Prayer Breaks: End Current Break"
+      },
+      {
+        "command": "prayerBreaks.snooze",
+        "title": "Prayer Breaks: Snooze Reminder (5 min)"
+      }
+    ],
+    "configuration": {
+      "title": "Prayer Breaks",
+      "properties": {
+        "prayerBreaks.latitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "description": "Latitude of your location (e.g., 21.4225 for Makkah). Leave null to auto-detect on startup."
+        },
+        "prayerBreaks.longitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "description": "Longitude of your location (e.g., 39.8262 for Makkah). Leave null to auto-detect on startup."
+        },
+        "prayerBreaks.cityName": {
+          "type": "string",
+          "default": "",
+          "description": "Display name for your city/location."
+        },
+        "prayerBreaks.calculationMethod": {
+          "type": "string",
+          "enum": [
+            "MuslimWorldLeague",
+            "Egyptian",
+            "Karachi",
+            "UmmAlQura",
+            "Dubai",
+            "MoonsightingCommittee",
+            "NorthAmerica",
+            "Kuwait",
+            "Qatar",
+            "Singapore",
+            "Tehran",
+            "Turkey"
+          ],
+          "enumDescriptions": [
+            "Muslim World League (Standard in Europe, Far East, parts of US)",
+            "Egyptian General Authority of Survey (Africa, Syria, Lebanon, Malaysia)",
+            "University of Islamic Sciences, Karachi (Pakistan, Bangladesh, India, Afghanistan)",
+            "Umm al-Qura University, Makkah (Saudi Arabia / Arabian Peninsula)",
+            "Dubai / UAE",
+            "Moonsighting Committee Worldwide",
+            "Islamic Society of North America - ISNA (US & Canada)",
+            "Kuwait",
+            "Qatar",
+            "Majlis Ugama Islam Singapura, Singapore",
+            "Institute of Geophysics, University of Tehran",
+            "Diyanet İşleri Başkanlığı, Turkey"
+          ],
+          "default": "MuslimWorldLeague",
+          "description": "Astronomical calculation method for Fajr and Isha angles."
+        },
+        "prayerBreaks.madhab": {
+          "type": "string",
+          "enum": [
+            "Shafi",
+            "Hanafi"
+          ],
+          "enumDescriptions": [
+            "Standard (Shafi'i, Maliki, Hanbali) — Earlier Asr time (shadow length = 1x object)",
+            "Hanafi — Later Asr time (shadow length = 2x object)"
+          ],
+          "default": "Shafi",
+          "description": "Juristic method for calculating Asr prayer time."
+        },
+        "prayerBreaks.highLatitudeRule": {
+          "type": "string",
+          "enum": [
+            "MiddleOfTheNight",
+            "SeventhOfTheNight",
+            "TwilightAngle"
+          ],
+          "default": "MiddleOfTheNight",
+          "description": "Rule for calculating Fajr and Isha at high latitudes."
+        },
+        "prayerBreaks.preNotificationMinutes": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Minutes before prayer time to show a heads-up notification (0 to disable)."
+        },
+        "prayerBreaks.breakDurationMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Default duration in minutes for a prayer break timer."
+        },
+        "prayerBreaks.snoozeMinutes": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "Duration in minutes when snoozing a prayer notification."
+        },
+        "prayerBreaks.use24HourFormat": {
+          "type": "boolean",
+          "default": false,
+          "description": "Display prayer times in 24-hour format (e.g. 15:45 instead of 3:45 PM)."
+        },
+        "prayerBreaks.statusBarAlignment": {
+          "type": "string",
+          "enum": [
+            "Left",
+            "Right"
+          ],
+          "default": "Right",
+          "description": "Alignment of the Prayer Breaks countdown item in the VS Code status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "dependencies": {
+    "adhan": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}
